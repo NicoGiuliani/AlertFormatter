@@ -75,7 +75,15 @@ with open("input.txt", "r") as file:
     print(all_alerts_formatted)
     
     device_down_actual_times = []
-    
+    scan_information_list = re.findall(r"Last Scan\:.*\n\n.*\]", file_text)
+    scan_information = scan_information_list[0].split("\n\n") # have to iterate this, just doing one for now
+    last_scan = scan_information[0].split(": ")[1]
+    last_up = scan_information[1].split(": ")[1]
+    if last_scan != last_up:
+        device_down_actual_times.append(last_up)
+   
+    print(device_down_actual_times)
+    exit()
     
     
     # alert_received_time_list = re.findall(r"(?<=^Device: ).+[\n]+.+(?= \()", file_text, re.MULTILINE)
