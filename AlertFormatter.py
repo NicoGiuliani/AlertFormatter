@@ -9,80 +9,114 @@ from tkinter import *
 # Evaluate PRTG alert formatter before starting Meraki alert formatter
 #####################################################################################
 
-
+# Create a new input.txt or clear an existing input.txt of its contents
 with open("input.txt", "w"):
     pass
 
+# Open input.txt in Notepad, allowing the user to paste in alert(s)
 subprocess.run(["notepad.exe", "input.txt"])
 
+# Read the contents of input.txt into file_text
 file_text = ""
 with open("input.txt", "r") as file:
     for line in file:
         file_text += line
     
-    # Look-ahead insertions are used (?<=) but do not appear as part of the resulting match
+    # Capture customer with regex and check that all alerts are for the same customer
     customer = list(set(re.findall(r"(?<=Customer: )(.+)", file_text)))
     if len(customer) > 1:
-        print("Error: More than 1 customer was included in the input")
+        print("Error: More than 1 customer was included in input.txt")
+        exit()
     else:
         customer = customer[0]
         
     contact_person = re.search(r"(?<=Primary Contact - )(.+)", file_text) # what about secondary and tertiary?
     contact_number = re.search(r"(?<=  )(.+ )(?=\.+ Secondary Number:)", file_text) # same as above
     
+    # Capture and sort lexicographically all unique locations in the alerts
     location_list = re.findall(r"(?<=Group: )(.+)", file_text)
-    location_list = sorted(list(set(map(lambda x: x.strip(), location_list))))
+    location_list = sorted(list(set(map(lambda x: x.strip(), location_list)))) # why does this one need the strip() method?
     
+    # Capture and sort lexicographically all unique devices in the alerts
     device_list = re.findall(r"(?<=\=\=\=\=\=\= Device \=\=\=\=\=\=\n\n)(.+\))(?= \()", file_text)
     device_list = sorted(list(set(device_list)))
     
-    
+
+    ########### Working on it ###########
+    # Left off not having actual down times; all set with down alerts and up times
+    # Actual down times are at the very bottom; just need to capture the device they relate to
+    # It then needs to be added to "alerts" and sorted
+    # Should have four when done; down times, down alert times, up times, and combined alerts 
+    # Move regex expressions to constants
+
     # Checking for up alerts 
-    all_alerts = re.findall(
+    # This should be renamed somehow to reflect the section it's from; down alert time and up time are in this section
+    alerts = re.findall(
         r"(?<= Device \=\=\=\=\=\=\n\n).+[\n]*.+[\n]*.*[\n]*.*[\n]*.*[\n]*.*[\n]*(?=\=\=\= Additional Customer Details \=\=\=)", 
         file_text, 
         re.MULTILINE
     )
 
-    all_alerts_formatted = []
+    alerts_formatted = []
     down_alert_times_and_device_info = []
-    up_times_and_device_info_list = []
+    up_alert_times_and_device_info = []
     # alert_received_time_and_device_info_list = []
 
-    for notification in all_alerts:
-        separate_lines = list(filter(lambda x: len(x) > 1, notification.split("\n")))
+    for alert in alerts:
+        separate_lines = list(filter(lambda x: len(x) > 1, alert.split("\n")))
+
         device_and_ip = re.match(r"(.*)(?= \()", separate_lines[0]).group()
-        notification_type = separate_lines[1]
-        notification_time = separate_lines[-1].split(": ")[1].split(" (")[0]
-        full_notification = (notification_time, notification_type, device_and_ip)
-        all_alerts_formatted.append(full_notification)
+        alert_time = separate_lines[-1].split(": ")[1].split(" (")[0]
+        alert_type = separate_lines[1]
+
+        full_alert = (alert_time, alert_type, device_and_ip)
+        alerts_formatted.append(full_alert)
         
-        if notification_type == "Device Status: Down":
-            down_alert_times_and_device_info.append(full_notification)
-        elif "Device Status: Down ended (now: Up)" in notification_type:
-            up_times_and_device_info_list.append(full_notification)
+        if alert_type == "Device Status: Down":
+            down_alert_times_and_device_info.append(full_alert)
+        elif "Device Status: Down ended (now: Up)" in alert_type:
+            up_alert_times_and_device_info.append(full_alert)
         else:
             print("Unrecognized alert type")
             exit()
             
     print("Down alerts:")
     print(down_alert_times_and_device_info)
-    # print("\n\n\n")
     print("Up times:")
-    print(up_times_and_device_info_list)
-    
+    print(up_alert_times_and_device_info)
     print("All alerts:")
-    print(all_alerts_formatted)
+    print(alerts_formatted)
     
-    device_down_actual_times = []
-    scan_information_list = re.findall(r"Last Scan\:.*\n\n.*\]", file_text)
-    scan_information = scan_information_list[0].split("\n\n") # have to iterate this, just doing one for now
-    last_scan = scan_information[0].split(": ")[1]
-    last_up = scan_information[1].split(": ")[1]
-    if last_scan != last_up:
-        device_down_actual_times.append(last_up)
+    down_times_and_device_info = []
+    scan_info = re.findall(r"Last Scan\:.*\n\n.*\]", file_text)
+
+    ############# New section #############   <---- this will still need to capture the device the actual down time relates to
+    for entry in scan_info:
+        # rewrite regex to capture something with device info in it
+        separate_lines = entry.split("\n\n")
+        last_scan_time = separate_lines[0].split(": ")[1]
+        last_up_time = separate_lines[1].split(": ")[1]
+        if last_scan_time != last_up_time:
+            down_time = last_up_time
+            event_type = "device down"
+            # device_and_ip = ???
+            # full_event = (down_time, event_type, device_and_ip)
+            # down_times_and_device_info.append(full_event) 
    
-    print(device_down_actual_times)
+    print(down_times_and_device_info)
+
+    ############# Commented out from last night #############
+
+    # scan_information = scan_info[0].split("\n\n") # have to iterate this, just doing one for now
+    # last_scan_time = scan_information[0].split(": ")[1]
+    # last_up_time = scan_information[1].split(": ")[1]
+    # if last_scan_time != last_up_time:
+    #     down_times_and_device_info.append(last_up_time)
+   
+    # print(down_times_and_device_info)
+
+    ########################################################
+
     exit()
     
     
@@ -141,6 +175,23 @@ with open("output.txt", "w") as file:
     file.write("\n\nNext Steps/RFO: Investigating")
     file.write("\n-----------------------------------------------------------------------------------------")
     file.write("\nTime Line (Pacific):")
+
+
+    # combined_events = []
+    # for alert in alerts_formatted:
+    #     combined_events.append(alert_received_time[0] + " - Alert received for " + alert_received_time[1])
+    
+    # for device_down_time in down_times_and_device_info_list:
+    #     combined_events.append(device_down_time[0] + " - " + device_down_time[1] + " Down")
+        
+    # combined_events = sorted(combined_events, reverse=True)
+    
+    # for event in combined_events:
+    #     file.write("\n\t" + event)
+
+
+
+
 
     # combined_events = []
     # for alert_received_time in alert_received_time_and_device_info_list:
