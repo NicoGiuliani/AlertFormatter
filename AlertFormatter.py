@@ -30,66 +30,61 @@ with open("input.txt", "r") as file:
         customer = customer[0]
     
     
+    def collect_contact_information(regex):
+        contact_query = re.search(regex, file_text)
+        if contact_query is not None:
+            contact = contact_query.group()
+            contact_lines = contact.split("\n")
+            contact_lines = list(map(lambda x: x.strip(), contact_lines))
+            
+            contact_person = contact_lines[0]
+            contact_numbers = contact_lines[1]
+            contact_primary_number = contact_numbers.split(" ")[0]
+            contact_secondary_number = contact_numbers.split(" ")[4]
+            contact_emails = contact_lines[2]
+            contact_primary_email = contact_emails.split(" ")[0]
+            contact_secondary_email = contact_emails.split(" ")[4]
+            
+            return {
+                "person": contact_person,
+                "primary_number": contact_primary_number,
+                "secondary_number": contact_secondary_number,
+                "primary_email": contact_primary_email,
+                "secondary_email": contact_secondary_email,
+                "padding_value": 1
+            }
+        else:
+            return None
+		
+    # Capture contact information
+    primary_contact = collect_contact_information(r"(?<=Primary Contact - )(.*[\n]+.*[\n].*)")
+    secondary_contact = collect_contact_information(r"(?<=Secondary Contact - )(.*[\n]+.*[\n].*)") 
+    tertiary_contact = collect_contact_information(r"(?<=Tertiary Contact - )(.*[\n]+.*[\n].*)") 
+    
+    # longest_name = len(primary_contact["person"])
+    # longest_email = len(primary_contact["primary_email"])
+    
+    # if secondary_contact is not None:
+    #     if len(secondary_contact["person"]) > longest_name:
+    #         longest_name = len(secondary_contact["person"])
+    #     if len(secondary_contact["email"]) > longest_email:
+    #         longest_email = len(secondary_contact["email"])
+            
+    # if tertiary_contact is not None:
+    #     if len(tertiary_contact["person"]) > longest_name:
+    #         longest_name = len(tertiary_contact["person"])
+    #     if len(tertiary_contact["email"]) > longest_email:
+    #         longest_email = len(tertiary_contact["email"])
+            
+    # # Set padding values 
+    # if longest_name - len(primary_contact["person"]) > 5:
+    #     primary_contact["padding_value"] = 2
+    # if longest_name - len(secondary_contact["person"]) > 5:
+    #     secondary_contact["padding_value"] = 2
+    # if longest_name - len(tertiary_contact["person"]) > 5:
+    #     tertiary_contact["padding_value"] = 2
     
     
-    
-    ####################### CLEAN UP THIS AREA #######################
-    # This contact section is redundant and could likely be turned into a method
-    
-    primary_contact_query = re.search(r"(?<=Primary Contact - )(.*[\n]+.*[\n].*)", file_text)
-    if primary_contact_query is not None:
-        primary_contact = primary_contact_query.group()
-        primary_contact_lines = primary_contact.split("\n")
-        primary_contact_lines = list(map(lambda x: x.strip(), primary_contact_lines))
-        
-        primary_contact_person = primary_contact_lines[0]
-        primary_contact_numbers = primary_contact_lines[1]
-        primary_contact_primary_number = primary_contact_numbers.split(" ")[0]
-        primary_contact_secondary_number = primary_contact_numbers.split(" ")[4]
-        primary_contact_emails = primary_contact_lines[2]
-        primary_contact_primary_email = primary_contact_emails.split(" ")[0]
-        primary_contact_secondary_email = primary_contact_emails.split(" ")[4]
-    else:
-        primary_contact_person = None 
-        
-        
-    secondary_contact_query = re.search(r"(?<=Secondary Contact - )(.*[\n]+.*[\n].*)", file_text)
-    if secondary_contact_query is not None:
-        secondary_contact = secondary_contact_query.group()
-        secondary_contact_lines = secondary_contact.split("\n")
-        secondary_contact_lines = list(map(lambda x: x.strip(), secondary_contact_lines))
-        
-        secondary_contact_person = secondary_contact_lines[0]
-        secondary_contact_numbers = secondary_contact_lines[1]
-        secondary_contact_primary_number = secondary_contact_numbers.split(" ")[0]
-        secondary_contact_secondary_number = secondary_contact_numbers.split(" ")[4]
-        secondary_contact_emails = secondary_contact_lines[2]
-        secondary_contact_primary_email = secondary_contact_emails.split(" ")[0]
-        secondary_contact_secondary_email = secondary_contact_emails.split(" ")[4]
-    else:
-        secondary_contact_person = None 
-       
-        
-    tertiary_contact_query = re.search(r"(?<=Tertiary Contact - )(.*[\n]+.*[\n].*)", file_text)
-    if tertiary_contact_query is not None:
-        tertiary_contact = tertiary_contact_query.group()
-        tertiary_contact_lines = tertiary_contact.split("\n")
-        tertiary_contact_lines = list(map(lambda x: x.strip(), tertiary_contact_lines))
-        
-        tertiary_contact_person = tertiary_contact_lines[0]
-        tertiary_contact_numbers = tertiary_contact_lines[1]
-        tertiary_contact_primary_number = tertiary_contact_numbers.split(" ")[0]
-        tertiary_contact_secondary_number = tertiary_contact_numbers.split(" ")[4]
-        tertiary_contact_emails = tertiary_contact_lines[2]
-        tertiary_contact_primary_email = tertiary_contact_emails.split(" ")[0]
-        tertiary_contact_secondary_email = tertiary_contact_emails.split(" ")[4]
-    else:
-        tertiary_contact_person = None 
-    
-    #################################################################
-    
-    
-
     # Capture and sort lexicographically all unique locations in the alerts
     location_list = re.findall(r"(?<=Group: )(.+)", file_text)
     location_list = sorted(list(set(map(lambda x: x.strip(), location_list)))) # why does this one need the strip() method?
@@ -97,9 +92,6 @@ with open("input.txt", "r") as file:
     # Capture and sort lexicographically all unique devices in the alerts
     device_list = re.findall(r"(?<= Device \=\=\=\=\=\=\n\n)(.+)(?<=\))", file_text)
     device_list = sorted(list(set(device_list)))
-
-
-    
 
     alerts = re.findall(
         r"(?<= Device \=\=\=\=\=\=\n\n).+[\n]*.+[\n]*.*[\n]*.*[\n]*.*[\n]*.*[\n]*(?=\=\=\= Additional Customer Details \=\=\=)", 
@@ -157,22 +149,22 @@ with open("input.txt", "r") as file:
             
             print("Actual Down Times:", down_times_and_device_info)
     
+
 # Format this section for visual simplicity
 with open("output.txt", "w") as file:
     file.write("================================================================================================================\n")
-    file.write("Primary Contact: \t" + primary_contact_person + "\t" + primary_contact_primary_number + 
-               " (" + primary_contact_primary_email + ")\t | \t" + primary_contact_secondary_number + 
-               " (" + primary_contact_secondary_email + ")\n")
+    file.write("Primary Contact: \t" + primary_contact["person"] + "\t" + primary_contact["primary_number"] + 
+               " (" + primary_contact["primary_email"] + ")\t | \t" + primary_contact["secondary_number"] + 
+               " (" + primary_contact["secondary_email"] + ")\n")
     
-    if secondary_contact_person is not None:
-        file.write("Secondary Contact: \t" + secondary_contact_person + "\t" + secondary_contact_primary_number + 
-                " (" + secondary_contact_primary_email + ")\t | \t" + secondary_contact_secondary_number + 
-                " (" + secondary_contact_secondary_email + ")\n")
-    
-    if tertiary_contact_person is not None:
-        file.write("Tertiary Contact: \t" + tertiary_contact_person + "\t" + tertiary_contact_primary_number + 
-               " (" + tertiary_contact_primary_email + ")\t | \t" + tertiary_contact_secondary_number + 
-               " (" + tertiary_contact_secondary_email + ")\n")
+    if secondary_contact is not None:
+        file.write("Secondary Contact: \t" + secondary_contact["person"] + "\t" + secondary_contact["primary_number"] + 
+                " (" + secondary_contact["primary_email"] + ")\t | \t" + secondary_contact["secondary_number"] + 
+                " (" + secondary_contact["secondary_email"] + ")\n")
+    if tertiary_contact is not None:
+        file.write("Tertiary Contact: \t" + primary_contact["person"] + "\t" + tertiary_contact["primary_number"] + 
+                " (" + tertiary_contact["primary_email"] + ")\t | \t" + tertiary_contact["secondary_number"] + 
+                " (" + tertiary_contact["secondary_email"] + ")\n")
 
     
     file.write("================================================================================================================\n\n")
@@ -180,8 +172,8 @@ with open("output.txt", "w") as file:
     
     file.write("Support has received the following alerts.\n\nEdnetics Case: [[CAS]]\n\n")
     file.write("Customer: " + customer)
-    file.write("\nPoC: " + primary_contact_person)
-    file.write("\nContact Number: " + primary_contact_primary_number) 
+    file.write("\nPoC: " + primary_contact["person"])
+    file.write("\nContact Number: " + primary_contact["primary_number"]) 
     
     file.write("\n\nLocation(s):")
     if len(location_list) > 1:
