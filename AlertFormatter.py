@@ -4,8 +4,8 @@ from tkinter import *
 
 # TO-DO LIST 
 #####################################################################################
-# Add secondary/tertiary contacts and their phone numbers 
 # Evaluate PRTG alert formatter before starting Meraki alert formatter
+# Move regex expressions to constants
 #####################################################################################
 
 # Create a new input.txt or clear an existing input.txt of its contents
@@ -28,22 +28,78 @@ with open("input.txt", "r") as file:
         exit()
     else:
         customer = customer[0]
-        
-    contact_person = re.search(r"(?<=Primary Contact - )(.+)", file_text) # what about secondary and tertiary?
-    contact_number = re.search(r"(?<=  )(.+ )(?=\.+ Secondary Number:)", file_text) # same as above
     
+    
+    
+    
+    
+    ####################### CLEAN UP THIS AREA #######################
+    # This contact section is redundant and could likely be turned into a method
+    
+    primary_contact_query = re.search(r"(?<=Primary Contact - )(.*[\n]+.*[\n].*)", file_text)
+    if primary_contact_query is not None:
+        primary_contact = primary_contact_query.group()
+        primary_contact_lines = primary_contact.split("\n")
+        primary_contact_lines = list(map(lambda x: x.strip(), primary_contact_lines))
+        
+        primary_contact_person = primary_contact_lines[0]
+        primary_contact_numbers = primary_contact_lines[1]
+        primary_contact_primary_number = primary_contact_numbers.split(" ")[0]
+        primary_contact_secondary_number = primary_contact_numbers.split(" ")[4]
+        primary_contact_emails = primary_contact_lines[2]
+        primary_contact_primary_email = primary_contact_emails.split(" ")[0]
+        primary_contact_secondary_email = primary_contact_emails.split(" ")[4]
+    else:
+        primary_contact_person = None 
+        
+        
+    secondary_contact_query = re.search(r"(?<=Secondary Contact - )(.*[\n]+.*[\n].*)", file_text)
+    if secondary_contact_query is not None:
+        secondary_contact = secondary_contact_query.group()
+        secondary_contact_lines = secondary_contact.split("\n")
+        secondary_contact_lines = list(map(lambda x: x.strip(), secondary_contact_lines))
+        
+        secondary_contact_person = secondary_contact_lines[0]
+        secondary_contact_numbers = secondary_contact_lines[1]
+        secondary_contact_primary_number = secondary_contact_numbers.split(" ")[0]
+        secondary_contact_secondary_number = secondary_contact_numbers.split(" ")[4]
+        secondary_contact_emails = secondary_contact_lines[2]
+        secondary_contact_primary_email = secondary_contact_emails.split(" ")[0]
+        secondary_contact_secondary_email = secondary_contact_emails.split(" ")[4]
+    else:
+        secondary_contact_person = None 
+       
+        
+    tertiary_contact_query = re.search(r"(?<=Tertiary Contact - )(.*[\n]+.*[\n].*)", file_text)
+    if tertiary_contact_query is not None:
+        tertiary_contact = tertiary_contact_query.group()
+        tertiary_contact_lines = tertiary_contact.split("\n")
+        tertiary_contact_lines = list(map(lambda x: x.strip(), tertiary_contact_lines))
+        
+        tertiary_contact_person = tertiary_contact_lines[0]
+        tertiary_contact_numbers = tertiary_contact_lines[1]
+        tertiary_contact_primary_number = tertiary_contact_numbers.split(" ")[0]
+        tertiary_contact_secondary_number = tertiary_contact_numbers.split(" ")[4]
+        tertiary_contact_emails = tertiary_contact_lines[2]
+        tertiary_contact_primary_email = tertiary_contact_emails.split(" ")[0]
+        tertiary_contact_secondary_email = tertiary_contact_emails.split(" ")[4]
+    else:
+        tertiary_contact_person = None 
+    
+    #################################################################
+    
+    
+
     # Capture and sort lexicographically all unique locations in the alerts
     location_list = re.findall(r"(?<=Group: )(.+)", file_text)
     location_list = sorted(list(set(map(lambda x: x.strip(), location_list)))) # why does this one need the strip() method?
     
     # Capture and sort lexicographically all unique devices in the alerts
     device_list = re.findall(r"(?<= Device \=\=\=\=\=\=\n\n)(.+)(?<=\))", file_text)
-    # device_list = re.findall(r"(?<=\=\=\=\=\=\= Device \=\=\=\=\=\=\n\n)(.+\))(?= \()", file_text)
     device_list = sorted(list(set(device_list)))
-    # print(device_list)
-    # exit()
 
-    # Move regex expressions to constants
+
+    
 
     alerts = re.findall(
         r"(?<= Device \=\=\=\=\=\=\n\n).+[\n]*.+[\n]*.*[\n]*.*[\n]*.*[\n]*.*[\n]*(?=\=\=\= Additional Customer Details \=\=\=)", 
@@ -65,7 +121,6 @@ with open("input.txt", "r") as file:
 
         full_alert = (alert_time, alert_type, device_and_ip)
         alerts_formatted.append(full_alert)
-        # print(alert_type)
         
         if alert_type.strip() == "Device Status: Down":
             down_alert_times_and_device_info.append(full_alert)
@@ -78,11 +133,7 @@ with open("input.txt", "r") as file:
             exit()
             
     down_alert_times_and_device_info = sorted(down_alert_times_and_device_info, reverse=True)
-            
-    # print("Down alerts:", down_alert_times_and_device_info)
-    # print("Up times:", up_alert_times_and_device_info)
-    # print("All alerts:", alerts_formatted)
-        
+                    
     down_times_and_device_info = []
     scan_info = re.findall(r"Last Scan\:.*\n\n.*\]", file_text)
     for entry in scan_info:
@@ -106,11 +157,31 @@ with open("input.txt", "r") as file:
             
             print("Actual Down Times:", down_times_and_device_info)
     
+# Format this section for visual simplicity
 with open("output.txt", "w") as file:
+    file.write("================================================================================================================\n")
+    file.write("Primary Contact: \t" + primary_contact_person + "\t" + primary_contact_primary_number + 
+               " (" + primary_contact_primary_email + ")\t | \t" + primary_contact_secondary_number + 
+               " (" + primary_contact_secondary_email + ")\n")
+    
+    if secondary_contact_person is not None:
+        file.write("Secondary Contact: \t" + secondary_contact_person + "\t" + secondary_contact_primary_number + 
+                " (" + secondary_contact_primary_email + ")\t | \t" + secondary_contact_secondary_number + 
+                " (" + secondary_contact_secondary_email + ")\n")
+    
+    if tertiary_contact_person is not None:
+        file.write("Tertiary Contact: \t" + tertiary_contact_person + "\t" + tertiary_contact_primary_number + 
+               " (" + tertiary_contact_primary_email + ")\t | \t" + tertiary_contact_secondary_number + 
+               " (" + tertiary_contact_secondary_email + ")\n")
+
+    
+    file.write("================================================================================================================\n\n")
+    
+    
     file.write("Support has received the following alerts.\n\nEdnetics Case: [[CAS]]\n\n")
     file.write("Customer: " + customer)
-    file.write("\nPoC: " + contact_person.group()) # currently only takes the primary
-    file.write("\nContact Number: " + contact_number.group()) 
+    file.write("\nPoC: " + primary_contact_person)
+    file.write("\nContact Number: " + primary_contact_primary_number) 
     
     file.write("\n\nLocation(s):")
     if len(location_list) > 1:
@@ -145,7 +216,6 @@ with open("output.txt", "w") as file:
     combined_events = sorted(combined_events, reverse=True)
     event_message = ""
     for event in combined_events:
-        # print("event:", event)
         if event[1].strip() == "Device Status: Down":
             event_message = "Down alert\t"
         elif event[1] == "Actual Down Time":
