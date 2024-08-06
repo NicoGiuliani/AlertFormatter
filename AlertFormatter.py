@@ -1,3 +1,4 @@
+import math
 import re
 import subprocess
 from tkinter import *
@@ -51,7 +52,9 @@ with open("input.txt", "r") as file:
                 "secondary_number": contact_secondary_number,
                 "primary_email": contact_primary_email,
                 "secondary_email": contact_secondary_email,
-                "padding_value": 1
+                "person_padding": "\t",
+                "primary_email_padding": "\t",
+                "secondary_email_padding": "\t"
             }
         else:
             return None
@@ -61,29 +64,38 @@ with open("input.txt", "r") as file:
     secondary_contact = collect_contact_information(r"(?<=Secondary Contact - )(.*[\n]+.*[\n].*)") 
     tertiary_contact = collect_contact_information(r"(?<=Tertiary Contact - )(.*[\n]+.*[\n].*)") 
     
-    # longest_name = len(primary_contact["person"])
-    # longest_email = len(primary_contact["primary_email"])
+    longest_name_length = len(primary_contact["person"])
+    longest_primary_email = len(primary_contact["primary_email"])
+    longest_secondary_email = len(primary_contact["secondary_email"])
     
-    # if secondary_contact is not None:
-    #     if len(secondary_contact["person"]) > longest_name:
-    #         longest_name = len(secondary_contact["person"])
-    #     if len(secondary_contact["email"]) > longest_email:
-    #         longest_email = len(secondary_contact["email"])
+    if secondary_contact is not None:
+        if len(secondary_contact["person"]) > longest_name_length:
+            longest_name_length = len(secondary_contact["person"])
+        if len(secondary_contact["primary_email"]) > longest_primary_email:
+            longest_primary_email = len(secondary_contact["primary_email"])
+        if len(secondary_contact["secondary_email"]) > longest_secondary_email:
+            longest_secondary_email = len(secondary_contact["secondary_email"])
             
-    # if tertiary_contact is not None:
-    #     if len(tertiary_contact["person"]) > longest_name:
-    #         longest_name = len(tertiary_contact["person"])
-    #     if len(tertiary_contact["email"]) > longest_email:
-    #         longest_email = len(tertiary_contact["email"])
+    if tertiary_contact is not None:
+        if len(tertiary_contact["person"]) > longest_name_length:
+            longest_name_length = len(tertiary_contact["person"])
+        if len(tertiary_contact["primary_email"]) > longest_primary_email:
+            longest_primary_email = len(tertiary_contact["primary_email"])
+        if len(tertiary_contact["secondary_email"]) > longest_secondary_email:
+            longest_secondary_email = len(tertiary_contact["secondary_email"])
             
-    # # Set padding values 
-    # if longest_name - len(primary_contact["person"]) > 5:
-    #     primary_contact["padding_value"] = 2
-    # if longest_name - len(secondary_contact["person"]) > 5:
-    #     secondary_contact["padding_value"] = 2
-    # if longest_name - len(tertiary_contact["person"]) > 5:
-    #     tertiary_contact["padding_value"] = 2
-    
+
+    primary_contact["person_padding"] = math.ceil((longest_name_length - len(primary_contact["person"])) / 5) * "\t"
+    primary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(primary_contact["primary_email"])) / 5) * "\t"
+    primary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(primary_contact["secondary_email"])) / 5) * "\t"
+    if secondary_contact is not None:
+        secondary_contact["person_padding"] = math.ceil((longest_name_length - len(secondary_contact["person"])) / 5) * "\t"
+        secondary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(secondary_contact["primary_email"])) / 5) * "\t"
+        secondary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(secondary_contact["secondary_email"])) / 5) * "\t"
+    if tertiary_contact is not None:
+        tertiary_contact["person_padding"] = math.ceil((longest_name_length - len(tertiary_contact["person"])) / 5) * "\t"
+        tertiary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(tertiary_contact["primary_email"])) / 5) * "\t"
+        tertiary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(tertiary_contact["secondary_email"])) / 5) * "\t"
     
     # Capture and sort lexicographically all unique locations in the alerts
     location_list = re.findall(r"(?<=Group: )(.+)", file_text)
@@ -153,16 +165,16 @@ with open("input.txt", "r") as file:
 # Format this section for visual simplicity
 with open("output.txt", "w") as file:
     file.write("================================================================================================================\n")
-    file.write("Primary Contact: \t" + primary_contact["person"] + "\t" + primary_contact["primary_number"] + 
+    file.write("Primary Contact: \t" + primary_contact["person"] + primary_contact["person_padding"] + primary_contact["primary_number"] + 
                " (" + primary_contact["primary_email"] + ")\t | \t" + primary_contact["secondary_number"] + 
                " (" + primary_contact["secondary_email"] + ")\n")
     
     if secondary_contact is not None:
-        file.write("Secondary Contact: \t" + secondary_contact["person"] + "\t" + secondary_contact["primary_number"] + 
+        file.write("Secondary Contact: \t" + secondary_contact["person"] + secondary_contact["person_padding"] + secondary_contact["primary_number"] + 
                 " (" + secondary_contact["primary_email"] + ")\t | \t" + secondary_contact["secondary_number"] + 
                 " (" + secondary_contact["secondary_email"] + ")\n")
     if tertiary_contact is not None:
-        file.write("Tertiary Contact: \t" + primary_contact["person"] + "\t" + tertiary_contact["primary_number"] + 
+        file.write("Tertiary Contact: \t" + tertiary_contact["person"] + tertiary_contact["person_padding"] + tertiary_contact["primary_number"] + 
                 " (" + tertiary_contact["primary_email"] + ")\t | \t" + tertiary_contact["secondary_number"] + 
                 " (" + tertiary_contact["secondary_email"] + ")\n")
 
