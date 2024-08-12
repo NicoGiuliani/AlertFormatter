@@ -7,6 +7,8 @@ from tkinter import *
 #####################################################################################
 # Evaluate PRTG alert formatter before starting Meraki alert formatter
 # Move regex expressions to constants
+# Extensions ???-???-???? x???? (Leigh-Anne has one of these format numbers)
+# Format times; add padding
 #####################################################################################
 
 # Create a new input.txt or clear an existing input.txt of its contents
@@ -39,13 +41,20 @@ with open("input.txt", "r") as file:
             contact_lines = list(map(lambda x: x.strip(), contact_lines))
             
             contact_person = contact_lines[0]
-            contact_numbers = contact_lines[1]
-            contact_primary_number = contact_numbers.split(" ")[0]
-            contact_secondary_number = contact_numbers.split(" ")[4]
-            contact_emails = contact_lines[2]
-            contact_primary_email = contact_emails.split(" ")[0]
-            contact_secondary_email = contact_emails.split(" ")[4]
             
+            # Phone number formats covered: (???) ???-????, ???-???-????
+            contact_numbers = re.findall(r"(\([0-9]{3}\)\s[0-9]{3}\-[0-9]{4}|[0-9]{3}\-[0-9]{3}\-[0-9]{4})", contact_lines[1])
+            # print("contacts:", contact_numbers)
+            contact_primary_number = contact_numbers[0] if 0 < len(contact_numbers) else "           "
+            contact_secondary_number = contact_numbers[1] if 1 < len(contact_numbers) else "           "
+            
+            contact_emails = re.findall(r"([A-Za-z0-9\_\.]*@[A-Za-z0-9\_\.]*\.[A-Za-z]{3})", contact_lines[2])
+            # print("emails:", contact_emails)
+            contact_primary_email = contact_emails[0] if 0 < len(contact_emails) else "           "
+            contact_secondary_email = contact_emails[1] if 1 < len(contact_emails) else "           "
+            
+            # print("Email:", contact_primary_email)
+            # print("Email 2:", contact_secondary_email)
             return {
                 "person": contact_person,
                 "primary_number": contact_primary_number,
@@ -85,24 +94,24 @@ with open("input.txt", "r") as file:
             longest_secondary_email = len(tertiary_contact["secondary_email"])
             
 
-    primary_contact["person_padding"] = math.ceil((longest_name_length - len(primary_contact["person"])) / 5) * "\t"
-    primary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(primary_contact["primary_email"])) / 5) * "\t"
-    primary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(primary_contact["secondary_email"])) / 5) * "\t"
+    primary_contact["person_padding"] = math.ceil((longest_name_length - len(primary_contact["person"])) / 6) * "\t" or "\t"
+    primary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(primary_contact["primary_email"])) / 6) * "\t" or "\t"
+    primary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(primary_contact["secondary_email"])) / 6) * "\t" or "\t"
     if secondary_contact is not None:
-        secondary_contact["person_padding"] = math.ceil((longest_name_length - len(secondary_contact["person"])) / 5) * "\t"
-        secondary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(secondary_contact["primary_email"])) / 5) * "\t"
-        secondary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(secondary_contact["secondary_email"])) / 5) * "\t"
+        secondary_contact["person_padding"] = math.ceil((longest_name_length - len(secondary_contact["person"])) / 6) * "\t" or "\t"
+        secondary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(secondary_contact["primary_email"])) / 6) * "\t" or "\t"
+        secondary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(secondary_contact["secondary_email"])) / 6) * "\t" or "\t"
     if tertiary_contact is not None:
-        tertiary_contact["person_padding"] = math.ceil((longest_name_length - len(tertiary_contact["person"])) / 5) * "\t"
-        tertiary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(tertiary_contact["primary_email"])) / 5) * "\t"
-        tertiary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(tertiary_contact["secondary_email"])) / 5) * "\t"
+        tertiary_contact["person_padding"] = math.ceil((longest_name_length - len(tertiary_contact["person"])) / 6) * "\t" or "\t"
+        tertiary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(tertiary_contact["primary_email"])) / 6) * "\t" or "\t"
+        tertiary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(tertiary_contact["secondary_email"])) / 6) * "\t" or "\t"
     
     # Capture and sort lexicographically all unique locations in the alerts
     location_list = re.findall(r"(?<=Group: )(.+)", file_text)
     location_list = sorted(list(set(map(lambda x: x.strip(), location_list)))) # why does this one need the strip() method?
     
     # Capture and sort lexicographically all unique devices in the alerts
-    device_list = re.findall(r"(?<= Device \=\=\=\=\=\=\n\n)(.+)(?<=\))", file_text)
+    device_list = re.findall(r"(?<= Device \=\=\=\=\=\=\n\n)([^\s]* \([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\))", file_text)
     device_list = sorted(list(set(device_list)))
 
     alerts = re.findall(
@@ -117,12 +126,13 @@ with open("input.txt", "r") as file:
     down_escalations_and_device_info = []
 
     for alert in alerts:
-        separate_lines = list(filter(lambda x: len(x) > 1, alert.split("\n")))
+        separate_lines = list(filter(lambda x: len(x) > 1, alert.split("\n\n")))
 
         device_and_ip = re.match(r"(.*)(?= \()", separate_lines[0]).group()
         alert_time = separate_lines[-1].split(": ")[1].split(" (")[0]
-        alert_type = separate_lines[1]
-
+        
+        alert_type = separate_lines[1] 
+            
         full_alert = (alert_time, alert_type, device_and_ip)
         alerts_formatted.append(full_alert)
         
@@ -164,22 +174,22 @@ with open("input.txt", "r") as file:
 
 # Format this section for visual simplicity
 with open("output.txt", "w") as file:
-    file.write("================================================================================================================\n")
+    file.write("=" * 150 + "\n")
     file.write("Primary Contact: \t" + primary_contact["person"] + primary_contact["person_padding"] + primary_contact["primary_number"] + 
-               " (" + primary_contact["primary_email"] + ")\t | \t" + primary_contact["secondary_number"] + 
-               " (" + primary_contact["secondary_email"] + ")\n")
+               ("\t" if primary_contact["primary_email"] else "") + primary_contact["primary_email"] + primary_contact["primary_email_padding"] + "|   " + primary_contact["secondary_number"] + 
+               ("\t" if primary_contact["secondary_email"] else "") + primary_contact["secondary_email"] + "\n")
     
     if secondary_contact is not None:
         file.write("Secondary Contact: \t" + secondary_contact["person"] + secondary_contact["person_padding"] + secondary_contact["primary_number"] + 
-                " (" + secondary_contact["primary_email"] + ")\t | \t" + secondary_contact["secondary_number"] + 
-                " (" + secondary_contact["secondary_email"] + ")\n")
+                ("\t" if secondary_contact["primary_email"] else "") + secondary_contact["primary_email"] + secondary_contact["primary_email_padding"] + "|   " + secondary_contact["secondary_number"] + 
+                ("\t" if secondary_contact["secondary_email"] else "") + secondary_contact["secondary_email"] + "\n")
     if tertiary_contact is not None:
         file.write("Tertiary Contact: \t" + tertiary_contact["person"] + tertiary_contact["person_padding"] + tertiary_contact["primary_number"] + 
-                " (" + tertiary_contact["primary_email"] + ")\t | \t" + tertiary_contact["secondary_number"] + 
-                " (" + tertiary_contact["secondary_email"] + ")\n")
+                ("\t" if tertiary_contact["primary_email"] else "") + tertiary_contact["primary_email"] + tertiary_contact["primary_email_padding"] + "|   " + tertiary_contact["secondary_number"] + 
+                ("\t" if tertiary_contact["secondary_email"] else "") + tertiary_contact["secondary_email"] + "\n")
 
     
-    file.write("================================================================================================================\n\n")
+    file.write("=" * 150 + "\n\n")
     
     
     file.write("Support has received the following alerts.\n\nEdnetics Case: [[CAS]]\n\n")
