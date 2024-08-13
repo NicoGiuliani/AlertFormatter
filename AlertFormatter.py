@@ -5,10 +5,13 @@ from tkinter import *
 
 # TO-DO LIST 
 #####################################################################################
-# Evaluate PRTG alert formatter before starting Meraki alert formatter
 # Move regex expressions to constants
-# Extensions ???-???-???? x???? (Leigh-Anne has one of these format numbers)
-# Format times; add padding
+# Add filters for all other types of phone number
+# What about formatting numbers for viewing? Some aren't formatted the same when scraped
+# Have to handle Health Probe type alerts
+# What about Summaries?
+# Start the one for Meraki alerts
+# Clean up, document everything
 #####################################################################################
 
 # Create a new input.txt or clear an existing input.txt of its contents
@@ -25,7 +28,8 @@ with open("input.txt", "r") as file:
         file_text += line
     
     # Capture customer with regex and check that all alerts are for the same customer
-    customer = list(set(re.findall(r"(?<=Customer: )(.+)", file_text)))
+    customer = list(set(re.findall(r"(?<=Customer: )(.+)(?=\n)", file_text)))
+    print("customer:", customer)
     if len(customer) > 1:
         print("Error: More than 1 customer was included in input.txt")
         exit()
@@ -93,26 +97,27 @@ with open("input.txt", "r") as file:
         if len(tertiary_contact["secondary_email"]) > longest_secondary_email:
             longest_secondary_email = len(tertiary_contact["secondary_email"])
             
-
-    primary_contact["person_padding"] = math.ceil((longest_name_length - len(primary_contact["person"])) / 6) * "\t" or "\t"
-    primary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(primary_contact["primary_email"])) / 6) * "\t" or "\t"
-    primary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(primary_contact["secondary_email"])) / 6) * "\t" or "\t"
+    # print("longest primary email:", longest_primary_email)
+    
+    primary_contact["person_padding"] = math.ceil((longest_name_length - len(primary_contact["person"]))) * " " + "\t"
+    primary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(primary_contact["primary_email"]))) * " " + "\t"
+    primary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(primary_contact["secondary_email"]))) * " " + "\t"
     if secondary_contact is not None:
-        secondary_contact["person_padding"] = math.ceil((longest_name_length - len(secondary_contact["person"])) / 6) * "\t" or "\t"
-        secondary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(secondary_contact["primary_email"])) / 6) * "\t" or "\t"
-        secondary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(secondary_contact["secondary_email"])) / 6) * "\t" or "\t"
+        secondary_contact["person_padding"] = math.ceil((longest_name_length - len(secondary_contact["person"]))) * " " + "\t"
+        secondary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(secondary_contact["primary_email"]))) * " " + "\t"
+        secondary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(secondary_contact["secondary_email"]))) * " " + "\t"
     if tertiary_contact is not None:
-        tertiary_contact["person_padding"] = math.ceil((longest_name_length - len(tertiary_contact["person"])) / 6) * "\t" or "\t"
-        tertiary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(tertiary_contact["primary_email"])) / 6) * "\t" or "\t"
-        tertiary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(tertiary_contact["secondary_email"])) / 6) * "\t" or "\t"
+        tertiary_contact["person_padding"] = math.ceil((longest_name_length - len(tertiary_contact["person"]))) * " " + "\t"
+        tertiary_contact["primary_email_padding"] = math.ceil((longest_primary_email - len(tertiary_contact["primary_email"]))) * " " + "\t"
+        tertiary_contact["secondary_email_padding"] = math.ceil((longest_secondary_email - len(tertiary_contact["secondary_email"]))) * " " + "\t"
     
     # Capture and sort lexicographically all unique locations in the alerts
     location_list = re.findall(r"(?<=Group: )(.+)", file_text)
     location_list = sorted(list(set(map(lambda x: x.strip(), location_list)))) # why does this one need the strip() method?
     
-    # Capture and sort lexicographically all unique devices in the alerts
-    device_list = re.findall(r"(?<= Device \=\=\=\=\=\=\n\n)([^\s]* \([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\))", file_text)
-    device_list = sorted(list(set(device_list)))
+    # # Capture and sort lexicographically all unique devices in the alerts
+    # device_list = re.findall(r"(?<= Device \=\=\=\=\=\=\n\n)(.*\([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\))", file_text)
+    # device_list = sorted(list(set(device_list)))
 
     alerts = re.findall(
         r"(?<= Device \=\=\=\=\=\=\n\n).+[\n]*.+[\n]*.*[\n]*.*[\n]*.*[\n]*.*[\n]*(?=\=\=\= Additional Customer Details \=\=\=)", 
@@ -124,19 +129,36 @@ with open("input.txt", "r") as file:
     down_alert_times_and_device_info = []
     up_alert_times_and_device_info = []
     down_escalations_and_device_info = []
+    
+    # Capture and sort lexicographically all unique devices in the alerts
+    device_list = []
+    
 
     for alert in alerts:
         separate_lines = list(filter(lambda x: len(x) > 1, alert.split("\n\n")))
-
         device_and_ip = re.match(r"(.*)(?= \()", separate_lines[0]).group()
+        device_list.append(device_and_ip)
+        link_alert = False
+        
+        if "sensor" in separate_lines[1]:
+            # print(separate_lines[1])
+            link = re.search(r"(?<=Sensor Type: )(.*)(?= Traffic \()", separate_lines[1]).group()
+            device_and_ip = device_and_ip + " " + link
+            link_alert = True
+        
         alert_time = separate_lines[-1].split(": ")[1].split(" (")[0]
         
-        alert_type = separate_lines[1] 
+        alert_type = ""
+        for i in range(len(separate_lines)):
+            if "Device Status:" in separate_lines[i]:
+                alert_type = separate_lines[i].split("\n")[0]
+                # print(alert_type)
             
-        full_alert = (alert_time, alert_type, device_and_ip)
+        full_alert = (alert_time, alert_type, device_and_ip, link_alert)
+        # print("full_alert:", full_alert)
         alerts_formatted.append(full_alert)
         
-        if alert_type.strip() == "Device Status: Down":
+        if "Device Status: Down" in alert_type:
             down_alert_times_and_device_info.append(full_alert)
         elif "Device Status: Down ended (now: Up)" in alert_type:
             up_alert_times_and_device_info.append(full_alert)
@@ -146,6 +168,7 @@ with open("input.txt", "r") as file:
             print("Unrecognized alert type")
             exit()
             
+    device_list = sorted(list(set(device_list)))
     down_alert_times_and_device_info = sorted(down_alert_times_and_device_info, reverse=True)
                     
     down_times_and_device_info = []
@@ -159,6 +182,9 @@ with open("input.txt", "r") as file:
             event_type = "Actual Down Time"
 
             case_subject_info = re.search(r"(?<= indicating )" + r".*" + re.escape(down_time) + r".*" + r"(?= \[)", file_text).group()
+            # print("this thing:", re.search(r"indicating a link", file_text))
+            link_alert = True if re.search(r"indicating a link", file_text) is not None else False
+            print("link_alert:", link_alert)
             separate_words = case_subject_info.split(" ")
             device_info = ""
             for i in range(len(separate_words)):
@@ -166,30 +192,30 @@ with open("input.txt", "r") as file:
                     device = separate_words[i - 1]
                     ip = separate_words[i]
                     device_info = device + " " + ip
-                    down_times_and_device_info.append((down_time, event_type, device_info))
+                    down_times_and_device_info.append((down_time, event_type, device_info, link_alert))
             
             
-            print("Actual Down Times:", down_times_and_device_info)
+            # print("Actual Down Times:", down_times_and_device_info)
     
-
+# add padding to the length of each email, name, alert, etc.
 # Format this section for visual simplicity
 with open("output.txt", "w") as file:
-    file.write("=" * 150 + "\n")
+    file.write("=" * 165 + "\n")
     file.write("Primary Contact: \t" + primary_contact["person"] + primary_contact["person_padding"] + primary_contact["primary_number"] + 
-               ("\t" if primary_contact["primary_email"] else "") + primary_contact["primary_email"] + primary_contact["primary_email_padding"] + "|   " + primary_contact["secondary_number"] + 
+               ("\t" if primary_contact["primary_email"] else "") + primary_contact["primary_email"] + " " + primary_contact["primary_email_padding"] + "|   " + primary_contact["secondary_number"] + 
                ("\t" if primary_contact["secondary_email"] else "") + primary_contact["secondary_email"] + "\n")
     
     if secondary_contact is not None:
         file.write("Secondary Contact: \t" + secondary_contact["person"] + secondary_contact["person_padding"] + secondary_contact["primary_number"] + 
-                ("\t" if secondary_contact["primary_email"] else "") + secondary_contact["primary_email"] + secondary_contact["primary_email_padding"] + "|   " + secondary_contact["secondary_number"] + 
+                ("\t" if secondary_contact["primary_email"] else "") + secondary_contact["primary_email"] + " " + secondary_contact["primary_email_padding"] + "|   " + secondary_contact["secondary_number"] + 
                 ("\t" if secondary_contact["secondary_email"] else "") + secondary_contact["secondary_email"] + "\n")
     if tertiary_contact is not None:
         file.write("Tertiary Contact: \t" + tertiary_contact["person"] + tertiary_contact["person_padding"] + tertiary_contact["primary_number"] + 
-                ("\t" if tertiary_contact["primary_email"] else "") + tertiary_contact["primary_email"] + tertiary_contact["primary_email_padding"] + "|   " + tertiary_contact["secondary_number"] + 
+                ("\t" if tertiary_contact["primary_email"] else "") + tertiary_contact["primary_email"] + " " + tertiary_contact["primary_email_padding"] + "|   " + tertiary_contact["secondary_number"] + 
                 ("\t" if tertiary_contact["secondary_email"] else "") + tertiary_contact["secondary_email"] + "\n")
 
     
-    file.write("=" * 150 + "\n\n")
+    file.write("=" * 165 + "\n\n")
     
     
     file.write("Support has received the following alerts.\n\nEdnetics Case: [[CAS]]\n\n")
@@ -216,28 +242,30 @@ with open("output.txt", "w") as file:
         pass
     elif len(down_alert_times_and_device_info) > 1:
         for alert in down_alert_times_and_device_info:
-            file.write("\n\t" + alert[0] + " - " + alert[1] + "\t" + alert[2])
+            file.write("\n\t" + alert[0] + " - " + alert[2])
     else:
+        # print("boom:", down_alert_times_and_device_info)
         file.write(" " + down_alert_times_and_device_info[0][0])
     
-    file.write("\nUp Date/Time: TBD")
+    file.write("\n\nUp Date/Time: TBD")
     file.write("\n\nNext Steps/RFO: Investigating")
-    file.write("\n-----------------------------------------------------------------------------------------")
+    file.write("\n" + "-" * 165)
     file.write("\nTime Line (Pacific):")
 
-
+    print("downtimes:", down_times_and_device_info)
     combined_events = alerts_formatted + down_times_and_device_info
     combined_events = sorted(combined_events, reverse=True)
-    event_message = ""
+    print("combined:", combined_events)
+    
     for event in combined_events:
         if event[1].strip() == "Device Status: Down":
-            event_message = "Down alert\t"
+            event_message = "Down alert       \t" if event[3] == False else "Link alert       \t"
         elif event[1] == "Actual Down Time":
-            event_message = "Device down\t"
+            event_message = "Device down      \t" if event[3] == False else "Link down        \t"
         elif "Device Status: Down ended (now: Up)" in event[1]:
-            event_message = "Device up\t"
+            event_message = "Device up        \t" if event[3] == False else "Link up          \t"
         elif "Down ESCALATION" in event[1]:
-            event_message = "Escalation alert\t"
+            event_message = "Escalation alert \t"
         else:
             print("Who even knows, I'm as lost as you.")
             exit()
