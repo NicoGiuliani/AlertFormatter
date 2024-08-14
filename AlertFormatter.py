@@ -5,13 +5,16 @@ from tkinter import *
 
 # TO-DO LIST 
 #####################################################################################
-# Move regex expressions to constants
+# Work on Summary type alerts
+# Get Health Probe type alerts working
+# Sort affected devices by their IP addresses
+# Can probably drop seconds from timestamps
+# Can likely do away with contact emails (just comment out if they're already working)
 # Add filters for all other types of phone number
-# What about formatting numbers for viewing? Some aren't formatted the same when scraped
-# Have to handle Health Probe type alerts
-# What about Summaries?
-# Start the one for Meraki alerts
+# Move regex expressions to constants
 # Clean up, document everything
+# Start the one for Meraki alerts
+# Have it save a type of log file using the CAS number
 #####################################################################################
 
 # Create a new input.txt or clear an existing input.txt of its contents
@@ -30,7 +33,9 @@ with open("input.txt", "r") as file:
     # Capture customer with regex and check that all alerts are for the same customer
     customer = list(set(re.findall(r"(?<=Customer: )(.+)(?=\n)", file_text)))
     print("customer:", customer)
-    if len(customer) > 1:
+    if len(customer) == 2 and customer[0] in customer[1]:
+        customer = customer[0]
+    elif len(customer) > 1:
         print("Error: More than 1 customer was included in input.txt")
         exit()
     else:
@@ -43,22 +48,17 @@ with open("input.txt", "r") as file:
             contact = contact_query.group()
             contact_lines = contact.split("\n")
             contact_lines = list(map(lambda x: x.strip(), contact_lines))
-            
+                        
             contact_person = contact_lines[0]
             
-            # Phone number formats covered: (???) ???-????, ???-???-????
             contact_numbers = re.findall(r"(\([0-9]{3}\)\s[0-9]{3}\-[0-9]{4}|[0-9]{3}\-[0-9]{3}\-[0-9]{4})", contact_lines[1])
-            # print("contacts:", contact_numbers)
             contact_primary_number = contact_numbers[0] if 0 < len(contact_numbers) else "           "
             contact_secondary_number = contact_numbers[1] if 1 < len(contact_numbers) else "           "
             
             contact_emails = re.findall(r"([A-Za-z0-9\_\.]*@[A-Za-z0-9\_\.]*\.[A-Za-z]{3})", contact_lines[2])
-            # print("emails:", contact_emails)
             contact_primary_email = contact_emails[0] if 0 < len(contact_emails) else "           "
             contact_secondary_email = contact_emails[1] if 1 < len(contact_emails) else "           "
             
-            # print("Email:", contact_primary_email)
-            # print("Email 2:", contact_secondary_email)
             return {
                 "person": contact_person,
                 "primary_number": contact_primary_number,
@@ -75,7 +75,10 @@ with open("input.txt", "r") as file:
     # Capture contact information
     primary_contact = collect_contact_information(r"(?<=Primary Contact - )(.*[\n]+.*[\n].*)")
     secondary_contact = collect_contact_information(r"(?<=Secondary Contact - )(.*[\n]+.*[\n].*)") 
-    tertiary_contact = collect_contact_information(r"(?<=Tertiary Contact - )(.*[\n]+.*[\n].*)") 
+    tertiary_contact = collect_contact_information(r"(?<=Tertiary Contact - )(.*[\n]+.*[\n].*)")
+    
+    if primary_contact == None:
+        pass # this will eventually handle health probe type alerts (where there is no primary contact)
     
     longest_name_length = len(primary_contact["person"])
     longest_primary_email = len(primary_contact["primary_email"])
